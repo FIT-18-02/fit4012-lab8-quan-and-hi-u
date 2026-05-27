@@ -2,7 +2,11 @@ import os
 import socket
 from pathlib import Path
 
-from secure_transfer_utils import build_sender_payload, load_public_key, parse_secure_packet
+from secure_transfer_utils import (
+    build_sender_payload,
+    load_public_key,
+    parse_secure_packet,
+)
 
 SERVER_IP = os.getenv("SERVER_IP", "127.0.0.1")
 DATA_PORT = int(os.getenv("DATA_PORT", os.getenv("PORT", "6000")))
@@ -33,7 +37,9 @@ def send_packet(host: str, port: int, packet: bytes) -> None:
 def main() -> None:
     plaintext = get_plaintext()
     receiver_public_key = load_public_key(RECEIVER_PUBLIC_KEY)
-    packet, des_key, ciphertext_with_iv, plaintext_hash = build_sender_payload(plaintext, receiver_public_key)
+    packet, des_key, ciphertext_with_iv, plaintext_hash = build_sender_payload(
+        plaintext, receiver_public_key
+    )
     encrypted_des_key, _, _ = parse_secure_packet(packet)
 
     send_packet(SERVER_IP, DATA_PORT, packet)

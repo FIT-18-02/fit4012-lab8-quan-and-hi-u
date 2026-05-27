@@ -11,7 +11,9 @@ def main() -> None:
     generate_rsa_keypair(PRIVATE_KEY_PATH, PUBLIC_KEY_PATH)
     print(f"[+] Đã tạo khóa riêng: {PRIVATE_KEY_PATH}")
     print(f"[+] Đã tạo khóa công khai: {PUBLIC_KEY_PATH}")
-    print("[!] Chỉ chia sẻ receiver_public.pem cho Sender. Không commit private key thật lên GitHub.")
+    print(
+        "[!] Chỉ chia sẻ receiver_public.pem cho Sender. Không commit private key thật lên GitHub."
+    )
 
 
 if __name__ == "__main__":

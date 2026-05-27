@@ -126,7 +126,9 @@ def parse_length_header(header: bytes) -> int:
     return length
 
 
-def build_secure_packet(encrypted_des_key: bytes, ciphertext_with_iv: bytes, plaintext_hash: bytes) -> bytes:
+def build_secure_packet(
+    encrypted_des_key: bytes, ciphertext_with_iv: bytes, plaintext_hash: bytes
+) -> bytes:
     """
     Build Lab 8 packet:
     [len_key][encrypted_des_key][len_cipher][ciphertext_with_iv][sha256_hash]
@@ -146,21 +148,21 @@ def parse_secure_packet(packet: bytes) -> Tuple[bytes, bytes, bytes]:
     """Parse a complete Lab 8 packet into encrypted DES key, ciphertext, and hash."""
     cursor = 0
 
-    enc_key_len = parse_length_header(packet[cursor:cursor + LENGTH_HEADER_SIZE])
+    enc_key_len = parse_length_header(packet[cursor : cursor + LENGTH_HEADER_SIZE])
     cursor += LENGTH_HEADER_SIZE
-    encrypted_des_key = packet[cursor:cursor + enc_key_len]
+    encrypted_des_key = packet[cursor : cursor + enc_key_len]
     if len(encrypted_des_key) != enc_key_len:
         raise ValueError("Packet thiếu encrypted DES key.")
     cursor += enc_key_len
 
-    cipher_len = parse_length_header(packet[cursor:cursor + LENGTH_HEADER_SIZE])
+    cipher_len = parse_length_header(packet[cursor : cursor + LENGTH_HEADER_SIZE])
     cursor += LENGTH_HEADER_SIZE
-    ciphertext_with_iv = packet[cursor:cursor + cipher_len]
+    ciphertext_with_iv = packet[cursor : cursor + cipher_len]
     if len(ciphertext_with_iv) != cipher_len:
         raise ValueError("Packet thiếu ciphertext.")
     cursor += cipher_len
 
-    plaintext_hash = packet[cursor:cursor + SHA256_DIGEST_SIZE]
+    plaintext_hash = packet[cursor : cursor + SHA256_DIGEST_SIZE]
     if len(plaintext_hash) != SHA256_DIGEST_SIZE:
         raise ValueError("Packet thiếu SHA-256 hash.")
     cursor += SHA256_DIGEST_SIZE
@@ -171,7 +173,9 @@ def parse_secure_packet(packet: bytes) -> Tuple[bytes, bytes, bytes]:
     return encrypted_des_key, ciphertext_with_iv, plaintext_hash
 
 
-def build_sender_payload(plaintext: bytes, receiver_public_key) -> Tuple[bytes, bytes, bytes, bytes]:
+def build_sender_payload(
+    plaintext: bytes, receiver_public_key
+) -> Tuple[bytes, bytes, bytes, bytes]:
     """
     Build the bytes that Sender sends through socket.
 
@@ -194,9 +198,9 @@ def open_receiver_payload(packet: bytes, receiver_private_key) -> Tuple[bytes, b
     des_key = decrypt_des_key_rsa(encrypted_des_key, receiver_private_key)
     plaintext = decrypt_des_cbc(des_key, ciphertext_with_iv)
     calculated_hash = sha256_digest(plaintext)
-    
+
     # Ép kiểu rõ ràng thành bool để pass CI ngặt nghèo
-    integrity_ok = bool(calculated_hash == received_hash) 
+    integrity_ok = bool(calculated_hash == received_hash)
     return plaintext, integrity_ok
 
 
@@ -215,7 +219,8 @@ def recv_exact(conn, n: int) -> bytes:
         received += len(chunk)
     return b"".join(chunks)
 
-#qh
+
+# qh
 def recv_secure_packet(conn) -> bytes:
     """
     Receive one Lab 8 secure packet from a connected socket.
@@ -232,4 +237,10 @@ def recv_secure_packet(conn) -> bytes:
     ciphertext_with_iv = recv_exact(conn, cipher_len)
 
     plaintext_hash = recv_exact(conn, SHA256_DIGEST_SIZE)
-    return enc_key_len_header + encrypted_des_key + cipher_len_header + ciphertext_with_iv + plaintext_hash
+    return (
+        enc_key_len_header
+        + encrypted_des_key
+        + cipher_len_header
+        + ciphertext_with_iv
+        + plaintext_hash
+    )

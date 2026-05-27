@@ -42,7 +42,9 @@ def test_full_sender_receiver_payload_success():
     receiver_key = RSA.generate(2048)
     plaintext = b"Lab 8: DES-CBC + SHA-256 + RSA-OAEP"
 
-    packet, _des_key, _ciphertext, digest = build_sender_payload(plaintext, receiver_key.publickey())
+    packet, _des_key, _ciphertext, digest = build_sender_payload(
+        plaintext, receiver_key.publickey()
+    )
     opened_plaintext, integrity_ok = open_receiver_payload(packet, receiver_key)
 
     assert opened_plaintext == plaintext
@@ -52,7 +54,9 @@ def test_full_sender_receiver_payload_success():
 
 def test_tampered_hash_is_detected():
     receiver_key = RSA.generate(2048)
-    packet, _des_key, _ciphertext, _digest = build_sender_payload(b"original", receiver_key.publickey())
+    packet, _des_key, _ciphertext, _digest = build_sender_payload(
+        b"original", receiver_key.publickey()
+    )
 
     tampered_packet = packet[:-1] + bytes([packet[-1] ^ 0x01])
     plaintext, integrity_ok = open_receiver_payload(tampered_packet, receiver_key)
@@ -63,7 +67,9 @@ def test_tampered_hash_is_detected():
 
 def test_tampered_ciphertext_fails_or_changes_integrity():
     receiver_key = RSA.generate(2048)
-    packet, _des_key, _ciphertext, _digest = build_sender_payload(b"original message", receiver_key.publickey())
+    packet, _des_key, _ciphertext, _digest = build_sender_payload(
+        b"original message", receiver_key.publickey()
+    )
 
     # Flip one byte inside ciphertext, not in RSA-encrypted key or length headers.
     mutable = bytearray(packet)

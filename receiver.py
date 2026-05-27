@@ -2,7 +2,11 @@ import os
 import socket
 from pathlib import Path
 
-from secure_transfer_utils import load_private_key, open_receiver_payload, recv_secure_packet
+from secure_transfer_utils import (
+    load_private_key,
+    open_receiver_payload,
+    recv_secure_packet,
+)
 
 HOST = os.getenv("RECEIVER_HOST", "0.0.0.0")
 DATA_PORT = int(os.getenv("DATA_PORT", os.getenv("PORT", "6000")))
@@ -43,11 +47,13 @@ def main() -> None:
         lines.append("[-] Dữ liệu bị thay đổi hoặc giả mạo: SHA-256 không khớp.")
         print(lines[-1])
 
-    lines.extend([
-        "[+] Đã giải mã DES key bằng RSA private key của receiver.",
-        "[+] Đã giải mã bản tin bằng DES-CBC.",
-        f"[+] Bản tin gốc: {message}",
-    ])
+    lines.extend(
+        [
+            "[+] Đã giải mã DES key bằng RSA private key của receiver.",
+            "[+] Đã giải mã bản tin bằng DES-CBC.",
+            f"[+] Bản tin gốc: {message}",
+        ]
+    )
     print("[+] Đã giải mã DES key bằng RSA private key của receiver.")
     print("[+] Đã giải mã bản tin bằng DES-CBC.")
     print(f"[+] Bản tin gốc: {message}")
