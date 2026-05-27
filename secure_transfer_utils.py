@@ -194,7 +194,10 @@ def open_receiver_payload(packet: bytes, receiver_private_key) -> Tuple[bytes, b
     des_key = decrypt_des_key_rsa(encrypted_des_key, receiver_private_key)
     plaintext = decrypt_des_cbc(des_key, ciphertext_with_iv)
     calculated_hash = sha256_digest(plaintext)
-    return plaintext, calculated_hash == received_hash
+    
+    # Ép kiểu rõ ràng thành bool để pass CI ngặt nghèo
+    integrity_ok = bool(calculated_hash == received_hash) 
+    return plaintext, integrity_ok
 
 
 def recv_exact(conn, n: int) -> bytes:
@@ -212,7 +215,7 @@ def recv_exact(conn, n: int) -> bytes:
         received += len(chunk)
     return b"".join(chunks)
 
-
+#qh
 def recv_secure_packet(conn) -> bytes:
     """
     Receive one Lab 8 secure packet from a connected socket.
