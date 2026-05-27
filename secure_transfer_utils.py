@@ -2,7 +2,7 @@ import hashlib
 import os
 import struct
 from pathlib import Path
-from typing import Tuple
+from typing import Tuple, Union, Optional
 
 from Crypto.Cipher import DES, PKCS1_OAEP
 from Crypto.PublicKey import RSA
@@ -35,14 +35,13 @@ def validate_des_key_iv(des_key: bytes, iv: bytes) -> None:
 
 def encrypt_des_cbc(
     plaintext: bytes,
-    des_key: bytes | None = None,
-    iv: bytes | None = None,
+    des_key: Optional[bytes] = None,
+    iv: Optional[bytes] = None,
 ) -> Tuple[bytes, bytes, bytes]:
     """
     Encrypt plaintext with DES-CBC and PKCS#7 padding.
 
     Returns: des_key, iv, ciphertext_with_iv.
-    The transmitted ciphertext includes IV at the beginning as required by Lab 8.
     """
     if des_key is None or iv is None:
         des_key, iv = generate_des_key_iv()
@@ -70,7 +69,7 @@ def decrypt_des_cbc(des_key: bytes, ciphertext_with_iv: bytes) -> bytes:
     return unpad(cipher_des.decrypt(encrypted_body), DES_BLOCK_SIZE)
 
 
-def generate_rsa_keypair(private_path: str | Path, public_path: str | Path) -> None:
+def generate_rsa_keypair(private_path: Union[str, Path], public_path: Union[str, Path]) -> None:
     """Generate a 2048-bit RSA key pair and write PEM files."""
     private_path = Path(private_path)
     public_path = Path(public_path)
@@ -82,12 +81,12 @@ def generate_rsa_keypair(private_path: str | Path, public_path: str | Path) -> N
     public_path.write_bytes(key.publickey().export_key())
 
 
-def load_public_key(path: str | Path):
+def load_public_key(path: Union[str, Path]):
     """Load an RSA public key from a PEM file."""
     return RSA.import_key(Path(path).read_bytes())
 
 
-def load_private_key(path: str | Path):
+def load_private_key(path: Union[str, Path]):
     """Load an RSA private key from a PEM file."""
     return RSA.import_key(Path(path).read_bytes())
 
@@ -111,8 +110,6 @@ def decrypt_des_key_rsa(encrypted_des_key: bytes, receiver_private_key) -> bytes
 
 def pack_length(data: bytes) -> bytes:
     """Pack byte length as 4-byte unsigned integer in network byte order."""
-    if len(data) <= 0:
-        raise ValueError("Không được đóng gói dữ liệu rỗng.")
     return struct.pack("!I", len(data))
 
 
@@ -121,8 +118,6 @@ def parse_length_header(header: bytes) -> int:
     if len(header) != LENGTH_HEADER_SIZE:
         raise ValueError("Length header phải dài đúng 4 byte.")
     length = struct.unpack("!I", header)[0]
-    if length <= 0:
-        raise ValueError("Length header phải lớn hơn 0.")
     return length
 
 
@@ -144,8 +139,12 @@ def build_secure_packet(encrypted_des_key: bytes, ciphertext_with_iv: bytes, pla
 
 def parse_secure_packet(packet: bytes) -> Tuple[bytes, bytes, bytes]:
     """Parse a complete Lab 8 packet into encrypted DES key, ciphertext, and hash."""
+    if len(packet) < LENGTH_HEADER_SIZE * 2 + SHA256_DIGEST_SIZE:
+        raise ValueError("Kích thước gói tin quá nhỏ so với cấu trúc quy định.")
+        
     cursor = 0
 
+    # Parse Encrypted DES Key
     enc_key_len = parse_length_header(packet[cursor:cursor + LENGTH_HEADER_SIZE])
     cursor += LENGTH_HEADER_SIZE
     encrypted_des_key = packet[cursor:cursor + enc_key_len]
@@ -153,6 +152,10 @@ def parse_secure_packet(packet: bytes) -> Tuple[bytes, bytes, bytes]:
         raise ValueError("Packet thiếu encrypted DES key.")
     cursor += enc_key_len
 
+    # Parse Ciphertext với IV
+    if len(packet) - cursor < LENGTH_HEADER_SIZE:
+        raise ValueError("Packet bị cắt cụt mất phần độ dài cipher header.")
+        
     cipher_len = parse_length_header(packet[cursor:cursor + LENGTH_HEADER_SIZE])
     cursor += LENGTH_HEADER_SIZE
     ciphertext_with_iv = packet[cursor:cursor + cipher_len]
@@ -160,6 +163,7 @@ def parse_secure_packet(packet: bytes) -> Tuple[bytes, bytes, bytes]:
         raise ValueError("Packet thiếu ciphertext.")
     cursor += cipher_len
 
+    # Parse SHA256 Hash
     plaintext_hash = packet[cursor:cursor + SHA256_DIGEST_SIZE]
     if len(plaintext_hash) != SHA256_DIGEST_SIZE:
         raise ValueError("Packet thiếu SHA-256 hash.")
@@ -172,11 +176,7 @@ def parse_secure_packet(packet: bytes) -> Tuple[bytes, bytes, bytes]:
 
 
 def build_sender_payload(plaintext: bytes, receiver_public_key) -> Tuple[bytes, bytes, bytes, bytes]:
-    """
-    Build the bytes that Sender sends through socket.
-
-    Returns: packet, des_key, ciphertext_with_iv, plaintext_hash.
-    """
+    """Build the bytes that Sender sends through socket."""
     plaintext_hash = sha256_digest(plaintext)
     des_key, _iv, ciphertext_with_iv = encrypt_des_cbc(plaintext)
     encrypted_des_key = encrypt_des_key_rsa(des_key, receiver_public_key)
@@ -185,24 +185,20 @@ def build_sender_payload(plaintext: bytes, receiver_public_key) -> Tuple[bytes, 
 
 
 def open_receiver_payload(packet: bytes, receiver_private_key) -> Tuple[bytes, bool]:
-    """
-    Parse, decrypt, and verify received Lab 8 packet.
-
-    Returns: plaintext, integrity_ok.
-    """
+    """Parse, decrypt, and verify received Lab 8 packet."""
     encrypted_des_key, ciphertext_with_iv, received_hash = parse_secure_packet(packet)
     des_key = decrypt_des_key_rsa(encrypted_des_key, receiver_private_key)
     plaintext = decrypt_des_cbc(des_key, ciphertext_with_iv)
     calculated_hash = sha256_digest(plaintext)
-
-    integrity_ok = bool(calculated_hash == received_hash)
-    return plaintext, integrity_ok
+    return plaintext, calculated_hash == received_hash
 
 
 def recv_exact(conn, n: int) -> bytes:
     """Receive exactly n bytes from a TCP connection."""
-    if n <= 0:
-        raise ValueError("Số byte cần nhận phải lớn hơn 0.")
+    if n < 0:
+        raise ValueError("Số byte cần nhận không được âm.")
+    if n == 0:
+        return b""
 
     chunks = []
     received = 0
@@ -216,12 +212,7 @@ def recv_exact(conn, n: int) -> bytes:
 
 
 def recv_secure_packet(conn) -> bytes:
-    """
-    Receive one Lab 8 secure packet from a connected socket.
-
-    Format:
-    [len_key:4][encrypted_des_key][len_cipher:4][ciphertext_with_iv][sha256_hash:32]
-    """
+    """Receive one Lab 8 secure packet from a connected socket."""
     enc_key_len_header = recv_exact(conn, LENGTH_HEADER_SIZE)
     enc_key_len = parse_length_header(enc_key_len_header)
     encrypted_des_key = recv_exact(conn, enc_key_len)
