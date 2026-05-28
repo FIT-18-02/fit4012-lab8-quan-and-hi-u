@@ -40,7 +40,6 @@ def encrypt_des_cbc(
 ) -> Tuple[bytes, bytes, bytes]:
     """
     Encrypt plaintext with DES-CBC and PKCS#7 padding.
-
     Returns: des_key, iv, ciphertext_with_iv.
     """
     if des_key is None or iv is None:
@@ -110,6 +109,9 @@ def decrypt_des_key_rsa(encrypted_des_key: bytes, receiver_private_key) -> bytes
 
 def pack_length(data: bytes) -> bytes:
     """Pack byte length as 4-byte unsigned integer in network byte order."""
+    # SỬA ĐỔI: Chặn dữ liệu rỗng theo yêu cầu của test_pack_length_rejects_empty_data
+    if not data:
+        raise ValueError("Dữ liệu trống không hợp lệ.")
     return struct.pack("!I", len(data))
 
 
@@ -181,7 +183,9 @@ def build_sender_payload(plaintext: bytes, receiver_public_key) -> Tuple[bytes, 
     des_key, _iv, ciphertext_with_iv = encrypt_des_cbc(plaintext)
     encrypted_des_key = encrypt_des_key_rsa(des_key, receiver_public_key)
     packet = build_secure_packet(encrypted_des_key, ciphertext_with_iv, plaintext_hash)
-    return packet, des_key, ciphertext_with_iv, plaintext_hash
+    
+    # SỬA ĐỔI: Thay thế phần tử thứ 2 từ 'des_key' thành 'encrypted_des_key' khớp với test
+    return packet, encrypted_des_key, ciphertext_with_iv, plaintext_hash
 
 
 def open_receiver_payload(packet: bytes, receiver_private_key) -> Tuple[bytes, bool]:
@@ -195,10 +199,9 @@ def open_receiver_payload(packet: bytes, receiver_private_key) -> Tuple[bytes, b
 
 def recv_exact(conn, n: int) -> bytes:
     """Receive exactly n bytes from a TCP connection."""
-    if n < 0:
-        raise ValueError("Số byte cần nhận không được âm.")
-    if n == 0:
-        return b""
+    # SỬA ĐỔI: Kiểm tra n <= 0 để ném lỗi hợp lệ thay vì return b"" khi n == 0
+    if n <= 0:
+        raise ValueError("Số byte cần nhận phải lớn hơn 0.")
 
     chunks = []
     received = 0
