@@ -5,7 +5,7 @@
 
 
 - Thành viên 1: Phạm Anh Quân - MSSV: 1871020471
-- Thành viên 2: Ngô Văn Hiếu
+- Thành viên 2: Ngô Văn Hiếu - MSSV: 1871020234
 
 ## Task division
 
